@@ -6,14 +6,19 @@ const bodyParser = require ("body-parser")
 const ejs = require ("ejs");
 const mongoose = require("mongoose");
 //const encrypt = require("mongoose-encryption");
-const md5 = require("md5");
+//const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 //+++connect to the database and create new one caled userDB+++
 mongoose.connect("mongodb://localhost:27017/userDB", {useNewUrlParser:true, useUnifiedTopology: true});
 
 //+++create new user schema for database+++
 const userSchema = new mongoose.Schema({
-    email:String,
+    email:{
+        type:String,
+        required:true
+    },
     password:String
 });
 
@@ -45,34 +50,40 @@ app.get("/register", function(req, res){
     res.render("register");
 });
 
-app.post("/register", function(req, res){
-    User.findOne({email:req.body.username, password:md5(req.body.password)}, function(err, result){
-        if(!result){
-            User.create({email:req.body.username, password:md5(req.body.password)}, function(err){
-                if(!err){
-                    res.render("secrets");
-                } else {
-                    console.log(err);
-                }
-            });
-        } else {
-            res.send("Your password already exits");
-        }
+app.post("/register", function (req, res) {
+    const email = req.body.username;
+    const password = req.body.password
+    bcrypt.hash(password, saltRounds, function (err, hash) {
+        User.findOne({ email: email }, function (err, foundUser) {
+            if (!err) {
+                User.create({ email: email, password: hash }, function (err) {
+                    if (!err) {
+                        res.render("secrets");
+                    } else {
+                        console.log(err);
+                    }
+                });
+            } else {
+                res.send("Your password already exits");
+            }
+        });//end of User.findOne
     });
 });
 
 app.post("/login", function(req, res){
     const username = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
-    User.findOne({email:username}, function(err, result){
+    User.findOne({email:username}, function(err, foundUser){
         if(err){
             console.log(err);
         } else {
-            if(result){
-                if(result.password === password){
-                    res.render("secrets");
-                }
+            if(foundUser){
+                bcrypt.compare(password, foundUser.password).then(function(result) {
+                    if(result === true){
+                        res.render("secrets");
+                    };    
+                });
             }
         }
     });
