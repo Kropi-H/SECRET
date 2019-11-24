@@ -5,7 +5,8 @@ const express = require ("express");
 const bodyParser = require ("body-parser")
 const ejs = require ("ejs");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+//const encrypt = require("mongoose-encryption");
+const md5 = require("md5");
 
 //+++connect to the database and create new one caled userDB+++
 mongoose.connect("mongodb://localhost:27017/userDB", {useNewUrlParser:true, useUnifiedTopology: true});
@@ -17,7 +18,7 @@ const userSchema = new mongoose.Schema({
 });
 
 //+++and this encrypting of the schema have to be plugin before creating new mongoose schema+++
-userSchema.plugin(encrypt, {secret:process.env.SECRET, encryptedFields:["password"]});
+//userSchema.plugin(encrypt, {secret:process.env.SECRET, encryptedFields:["password"]});
 
 //+++new user model for using database+++
 const User = new mongoose.model("User", userSchema);
@@ -45,9 +46,9 @@ app.get("/register", function(req, res){
 });
 
 app.post("/register", function(req, res){
-    User.findOne({email:req.body.username, password:req.body.password}, function(err, result){
+    User.findOne({email:req.body.username, password:md5(req.body.password)}, function(err, result){
         if(!result){
-            User.create({email:req.body.username, password:req.body.password}, function(err){
+            User.create({email:req.body.username, password:md5(req.body.password)}, function(err){
                 if(!err){
                     res.render("secrets");
                 } else {
@@ -62,7 +63,7 @@ app.post("/register", function(req, res){
 
 app.post("/login", function(req, res){
     const username = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);
 
     User.findOne({email:username}, function(err, result){
         if(err){
